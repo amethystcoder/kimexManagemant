@@ -1,0 +1,29 @@
+{
+  "name": "kimexmanagement",
+  "version": "1.0.0",
+  "description": "a management tool for stocking, invoices and others",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "keywords": [
+    "stock",
+    "management",
+    "inventory",
+    "commerce",
+    "wholesale"
+  ],
+  "author": "amethystcoder/oluwashetemi_coco",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

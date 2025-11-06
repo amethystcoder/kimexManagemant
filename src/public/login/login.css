@@ -1,0 +1,52 @@
+* {
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+body{
+    background-image: url('static/4957150.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: right; 
+    display: flex;
+    justify-content: start;
+    margin: 0;
+    padding: 0;
+}
+#loginForm{
+    background-color: rgb(255, 255, 255);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 40vw;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+input[type="text"],input[type="password"] {
+    width: 80%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+button {
+    width: 80%;
+    padding: 10px;
+    background-color: #1676c6;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+@media screen and (max-width: 600px) {
+    body {
+        justify-content: center;
+    }
+    #loginForm {
+        width: 90%;
+        margin: 20px;
+    }   
+}
