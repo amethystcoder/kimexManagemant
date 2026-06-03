@@ -106,12 +106,12 @@
               </div>
               <section class="present-stock-cont">
                 <h2>Present Stock</h2>
-                <ul class="contains-stock">
+                <ul id="stock-list" class="contains-stock">
                     
                 </ul>
             </section>
-            <button onclick="showRestock()">Add New Stock</button>
-            <button onclick="submitRestock()">Submit Restock</button>
+            <button type="button" onclick="showRestock()">Add New Stock</button>
+            <button type="button" onclick="submitRestock()">Submit Restock</button>
             </div>
           </div>
         </div>
@@ -119,7 +119,7 @@
 
 
       
-    <div class="overlay-div">
+    <div class="overlay-div inactive">
         <form id="restockForm" class="restock-form">
             <h1>Restock Item</h1>
             <span class="contains-input-area">
@@ -128,7 +128,11 @@
             </span>
             <span class="contains-input-area">
                 <label for="productType">Product Type</label><br>
-            <input type="text" id="productType" name="productType" placeholder="Product Type" required><br>
+                <select id="productType" name="productType" required>
+                    <option value="">Select type</option>
+                    <option value="Frozen">Frozen</option>
+                    <option value="Dry">Dry</option>
+                </select><br>
             </span>
             <span class="contains-input-area">
                 <label for="quantity">Quantity</label><br>

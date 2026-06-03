@@ -15,7 +15,7 @@ document.querySelector('#submitButton').addEventListener('click', async (event) 
         const result = await response.json();
         if (result.success) {
             // Save the username in the localstorage for fast login access
-            localStorage.setItem("username",result.username)
+            localStorage.setItem('username', result.user?.username || result.username);
             window.location.href = '/dashboard/dashboard.html'; // Redirect to dashboard on success
         } else {
             alert(result.message || 'Login failed. Please try again.');

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+  <title>Kimex Price Tag Generator</title>
+  <style>
+    * {
+       font-family: "Inter", sans-serif;
+    }
+    body {
+      font-family: "Inter", sans-serif;
+      padding: 20px;
+    }
+
+    /* Tab Navigation */
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #ccc;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      background: #f4f4f4;
+      margin-right: 5px;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+    .tab.active {
+      background: white;
+      font-weight: bold;
+      border-color: #000;
+    }
+
+    /* Form Styling */
+    .form-section {
+      max-width: 400px;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background-color: #222;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Tag Styles */
+    .tag {
+      border: 2px solid black;
+      padding: 10px;
+      max-width: 400px;
+      margin-top: 20px;
+      display: none;
+      border-radius: 10px;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .detailsContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: start;
+      text-align: left;
+    }
+    .logo {
+      font-family: 'Arial Black', sans-serif;
+      font-size: 24px;
+      color: red;
+    }
+    .product {
+      font-size: 35px;
+      font-weight: 900;
+      margin-top: 5px;
+    }
+    .type, .weight {
+      font-size: 20px;
+      margin-top: 5px;
+      font-weight: 700;
+    }
+    .price {
+       padding-top: 60px;
+       font-size: 45px;
+       font-weight: bold;
+       padding-bottom: 20px;
+    }
+    .footer {
+      margin-top: 10px;
+      color: black;
+      font-size: 14px;
+    }
+
+    #discountTag > .priceContainer{
+       border: none;
+       padding: 0;
+       margin-right: 25px;
+       padding-top: 80px;
+    }
+    .priceContainer {
+       height: 50%;
+       padding-right: 15px;
+       display: flex;
+       flex-direction: column;
+       align-items: center;
+       justify-content: center;
+    }
+
+    /* Discount Styles */
+    .discount-old {
+      font-size: 30px;
+      color: red;
+      text-decoration: line-through;
+      font-weight: 900;
+    }
+    .discount-new {
+      font-size: 40px;
+      font-weight: 900;
+    }
+    .star {
+       position: absolute;
+       top: -45px;
+       right: -30px;
+       width: 150px;
+       height: 150px;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       overflow: hidden;
+     }
+     .star > p {
+       color: white;
+       font-size: large;
+       font-weight: 600;
+       text-align: center;
+       width: 70%;
+       z-index: 1;
+     }
+    /* Promotion Styles */
+    .promo-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: #E94E1B;
+      margin-top: 5px;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .tag, .tag * {
+        visibility: visible;
+      }
+      .tag {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('labels')">Labels</div>
+    <div class="tab" onclick="switchTab('discounts')">Discounts</div>
+    <div class="tab" onclick="switchTab('promotions')">Promotions</div>
+  </div>
+
+  <!-- Label Form -->
+  <div class="form-section" id="labelForm">
+    <h2>Kimex Label Generator</h2>
+    <label>Product Name</label>
+    <input type="text" id="productName" placeholder="e.g., CERELAC"/>
+    <label>Product Type / Info</label>
+    <input type="text" id="productType" placeholder="e.g., Honey and Wheat"/>
+    <label>Item Barcode (optional)</label>
+    <input type="text" id="productBarCode" placeholder="e.g., 1234567890987654321"/>
+    <label>Weight</label>
+    <input type="text" id="productWeight" placeholder="e.g., 2.5kg"/>
+    <label>Price (€)</label>
+    <input type="text" id="productPrice" placeholder="e.g., 22.50"/>
+    <button onclick="generateLabel()">Generate Label</button>
+  </div>
+
+  <!-- Discount Form -->
+  <div class="form-section" id="discountForm" style="display:none;">
+    <h2>Kimex Discount Tag Generator</h2>
+    <label>Product Name</label>
+    <input type="text" id="dProductName" placeholder="e.g., CERELAC"/>
+    <label>Product Type / Info</label>
+    <input type="text" id="dProductType" placeholder="e.g., Honey and Wheat"/>
+    <label>Item Barcode (optional)</label>
+    <input type="text" id="dproductBarCode" placeholder="e.g., 1234567890987654321"/>
+    <label>Weight</label>
+    <input type="text" id="dProductWeight" placeholder="e.g., 2.5kg"/>
+    <label>Old Price (€)</label>
+    <input type="text" id="oldPrice" placeholder="e.g., 26.50"/>
+    <label>New Price (€)</label>
+    <input type="text" id="newPrice" placeholder="e.g., 22.50"/>
+    <button onclick="generateDiscount()">Generate Discount Tag</button>
+  </div>
+
+  <!-- Promotion Form -->
+  <div class="form-section" id="promoForm" style="display:none;">
+    <h2>Kimex Promotion Tag Generator</h2>
+    <label>Product Name</label>
+    <input type="text" id="pProductName" placeholder="e.g., CERELAC"/>
+    <label>Product Type / Info</label>
+    <input type="text" id="pProductType" placeholder="e.g., Honey and Wheat"/>
+    <label>Item Barcode (optional)</label>
+    <input type="text" id="pproductBarCode" placeholder="e.g., 1234567890987654321"/>
+    <label>Weight</label>
+    <input type="text" id="pProductWeight" placeholder="e.g., 2.5kg"/>
+    <label>Old Price (€)</label>
+    <input type="text" id="pOldPrice" placeholder="e.g., 30.00"/>
+    <label>New Price (€)</label>
+    <input type="text" id="pNewPrice" placeholder="e.g., 25.00"/>
+    <label>Promotion Text</label>
+    <input type="text" id="promoText" placeholder="e.g., Buy 4 Get 1 Free"/>
+    <button onclick="generatePromotion()">Generate Promotion Tag</button>
+  </div>
+
+  <!-- Label Tag -->
+  <div class="tag" id="priceTag">
+    <div class="detailsContainer">
+      <div class="logo"><img src="./pixelcut-export.jpg" width="100" alt="kimex-logo"/></div>
+      <div class="product" id="tagName"></div>
+      <div class="type" id="tagType"></div>
+      <div class="weight" id="tagWeight"></div>
+      <div class="footer">Kimex Super Store Ireland</div>
+    </div>
+    <div class="priceContainer">
+      <div class="price" id="tagPrice"></div>
+      <div style='text-align: center;'>
+        <img alt='Barcode Generator TEC-IT' id="productTagBarCode"
+            src='' width="120" height="60"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discount Tag -->
+  <div class="tag" id="discountTag">
+    <div class="detailsContainer">
+      <div class="logo"><img src="./pixelcut-export.jpg" width="100" alt="kimex-logo"/></div>
+      <div class="product" id="dTagName"></div>
+      <div class="type" id="dTagType"></div>
+      <div class="weight" id="dTagWeight"></div>
+      <div class="footer">Kimex Super Store Ireland</div>
+    </div>
+    <div class="priceContainer">
+      <div class="discount-old" id="oldTagPrice"></div>
+      <div class="discount-new" id="newTagPrice"></div>
+      <div style='text-align: center;'>
+        <img alt='Barcode Generator TEC-IT' id="discountTagBarCode"
+            src='' width="120" height="60"/>
+      </div>
+    </div>
+    <div class="star">
+       <svg width="399" height="403" viewBox="0 0 399 403" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:-1;">
+           <path d="M60.7787 53.4049L139.868 74.6961L174.074 0.275916L225.544 63.9882L296.96 23.8868L301.151 105.684L382.499 115.219L337.81 183.858L398.017 239.387L321.518 268.649L337.588 348.962L258.499 327.671L224.293 402.091L172.823 338.379L101.407 378.48L97.2161 296.683L15.8681 287.148L60.5571 218.509L0.349502 162.98L76.8486 133.718L60.7787 53.4049Z" fill="#E94C2A"/>
+       </svg>
+       <p id="discountText">get now at 50% off</p>
+    </div>
+  </div>
+
+  <!-- Promotion Tag -->
+  <div class="tag" id="promoTag">
+    <div class="detailsContainer">
+      <div class="logo"><img src="./pixelcut-export.jpg" width="100" alt="kimex-logo"/></div>
+      <div class="product" id="pTagName"></div>
+      <div class="type" id="pTagType"></div>
+      <div class="weight" id="pTagWeight"></div>
+      <div class="promo-text" id="pTagPromo"></div>
+      <div class="footer">Kimex Super Store Ireland</div>
+    </div>
+    <div class="priceContainer">
+      <div class="discount-old" id="pOldTagPrice"></div>
+      <div class="discount-new" id="pNewTagPrice"></div>
+      <div style='text-align: center;'>
+        <img alt='Barcode Generator TEC-IT' id="promoTagBarCode"
+            src='https://barcode.tec-it.com/barcode.ashx?data=ABC-abc-1234&translate-esc=on' width="120" height="60"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Button -->
+  <div id="printBtnContainer" style="margin-top:20px; display:none;">
+    <button onclick="window.print()">Print Tag</button>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      if (tab === 'labels') document.querySelector('.tab:nth-child(1)').classList.add('active');
+      if (tab === 'discounts') document.querySelector('.tab:nth-child(2)').classList.add('active');
+      if (tab === 'promotions') document.querySelector('.tab:nth-child(3)').classList.add('active');
+
+      document.getElementById('labelForm').style.display = tab === 'labels' ? 'block' : 'none';
+      document.getElementById('discountForm').style.display = tab === 'discounts' ? 'block' : 'none';
+      document.getElementById('promoForm').style.display = tab === 'promotions' ? 'block' : 'none';
+
+      document.getElementById('priceTag').style.display = 'none';
+      document.getElementById('discountTag').style.display = 'none';
+      document.getElementById('promoTag').style.display = 'none';
+      document.getElementById('printBtnContainer').style.display = 'none';
+    }
+
+    function generateLabel() {
+      const name = document.getElementById("productName").value.trim();
+      const type = document.getElementById("productType").value.trim();
+      const weight = document.getElementById("productWeight").value.trim();
+      const price = document.getElementById("productPrice").value.trim();
+      const barCode = document.getElementById("productBarCode").value.trim();
+      if (!name || !type || !weight || !price) return alert("Please fill in all fields.");
+
+      document.getElementById("tagName").textContent = name.toUpperCase();
+      document.getElementById("tagType").textContent = type;
+      document.getElementById("tagWeight").textContent = weight;
+      document.getElementById("tagPrice").textContent = "€" + parseFloat(price).toFixed(2);
+       document.getElementById("productTagBarCode").src = `https://barcode.tec-it.com/barcode.ashx?data=${barCode}&translate-esc=on`
+
+      document.getElementById("priceTag").style.display = "flex";
+      document.getElementById('discountTag').style.display = "none";
+      document.getElementById('promoTag').style.display = "none";
+      document.getElementById('printBtnContainer').style.display = 'block';
+    }
+
+    function generateDiscount() {
+      const name = document.getElementById("dProductName").value.trim();
+      const type = document.getElementById("dProductType").value.trim();
+      const weight = document.getElementById("dProductWeight").value.trim();
+      const oldPrice = parseFloat(document.getElementById("oldPrice").value.trim());
+      const newPrice = parseFloat(document.getElementById("newPrice").value.trim());
+      const barCode = document.getElementById("dproductBarCode").value.trim();
+      if (!name || !type || !weight || isNaN(oldPrice) || isNaN(newPrice)) return alert("Please fill in all fields correctly.");
+
+      const discountPercent = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+
+      document.getElementById("dTagName").textContent = name.toUpperCase();
+      document.getElementById("dTagType").textContent = type;
+      document.getElementById("dTagWeight").textContent = weight;
+      document.getElementById("oldTagPrice").textContent = "€" + oldPrice.toFixed(2);
+      document.getElementById("newTagPrice").textContent = "€" + newPrice.toFixed(2);
+      document.getElementById("discountText").textContent = `${discountPercent}% off, while stocks last`;
+       document.getElementById("discountTagBarCode").src = `https://barcode.tec-it.com/barcode.ashx?data=${barCode}&translate-esc=on`
+
+      document.getElementById("discountTag").style.display = "flex";
+      document.getElementById('priceTag').style.display = "none";
+      document.getElementById('promoTag').style.display = "none";
+      document.getElementById('printBtnContainer').style.display = 'block';
+    }
+
+    function generatePromotion() {
+      const name = document.getElementById("pProductName").value.trim();
+      const type = document.getElementById("pProductType").value.trim();
+      const weight = document.getElementById("pProductWeight").value.trim();
+      const oldPrice = parseFloat(document.getElementById("pOldPrice").value.trim());
+      const newPrice = parseFloat(document.getElementById("pNewPrice").value.trim());
+      const barCode = document.getElementById("pproductBarCode").value.trim();
+      const promo = document.getElementById("promoText").value.trim();
+      if (!name || !type || !weight || isNaN(oldPrice) || isNaN(newPrice) || !promo) return alert("Please fill in all fields correctly.");
+
+      document.getElementById("pTagName").textContent = name.toUpperCase();
+      document.getElementById("pTagType").textContent = type;
+      document.getElementById("pTagWeight").textContent = weight;
+      document.getElementById("pOldTagPrice").textContent = "€" + oldPrice.toFixed(2);
+      document.getElementById("pNewTagPrice").textContent = "€" + newPrice.toFixed(2);
+      document.getElementById("pTagPromo").textContent = promo;
+      document.getElementById("promoTagBarCode").src = `https://barcode.tec-it.com/barcode.ashx?data=${barCode}&translate-esc=on`
+
+      document.getElementById("promoTag").style.display = "flex";
+      document.getElementById('priceTag').style.display = "none";
+      document.getElementById('discountTag').style.display = "none";
+      document.getElementById('printBtnContainer').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

@@ -1,12 +1,9 @@
-import {  Router, NextFunction, Request, Response  } from "express";
-
-import { user } from "../types/authTypes";
+import { NextFunction, Request, Response } from 'express';
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    // Middleware to check if the user is authenticated
-    const userid: string | null = req.cookies["id"] as string;
-    if (!userid) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    next();
-}
+  const sessionUser = (req.session as any)?.user;
+  if (!sessionUser) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  next();
+};

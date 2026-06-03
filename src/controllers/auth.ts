@@ -1,207 +1,193 @@
-import { readFileSync,writeFileSync } from 'fs';
 import { Request, Response } from 'express';
-import { user, loginRequest, userType } from '../types/authTypes';
-import path from 'path';
-const bcrypt = require('bcrypt');
+import bcrypt from 'bcrypt';
+import { findUserByUsername, findUserById, createUser, updateUser, deactivateUser } from '../services/userService';
+import { LoginRequest, UserCreatePayload, UserUpdatePayload } from '../types/authTypes';
+import { log } from '../shared/utils/logger';
 
-const usersFile = path.join(__dirname,'../model/users.plex');
+export const loginUser = async (req: Request, res: Response) => {
+  const payload = req.body as LoginRequest;
+  if (!payload.username || !payload.password) {
+    return res.status(400).json({ success: false, message: 'Invalid credentials' });
+  }
 
-export const loginUser = (req:any, res:any) => {
-    //read user data from a plex file
-    let users:user[] = [];
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') return res.status(404).json({ success:false,message: 'No users found' });
-        const parsedData = Buffer.from(data, 'base64').toString('utf8'); // Decode base64
-        users = JSON.parse(parsedData);
-        const user = users.find(user => user.username === req.body.username);
-        if (!user) return res.status(404).json({ message: 'User not found' });
+  const user = await findUserByUsername(payload.username);
+  const genericResponse = { success: false, message: 'Invalid credentials' };
 
-        // Check password
-        const isPasswordValid = bcrypt.compareSync(req.body.password, user.password);
-        if (!isPasswordValid) return res.status(401).json({ message: 'Invalid password' });
-        // If password is valid, return user data (excluding password)
-        const { password, ...userData } = user; // Exclude password from response
-        res.status(200).json({...userData,success:true, message: 'Login successful' });
-    } catch (err) {
-        console.error('Error reading users file:', err);
-    }
-}
+  if (!user || !user.is_active) {
+    await log({
+      user_id: user?.id ?? null,
+      username: payload.username ?? null,
+      tier: user?.tier ?? null,
+      action: 'LOGIN_FAILED',
+      module: 'auth',
+      details: { reason: 'invalid credentials' },
+      ip_address: req.ip ?? null,
+      user_agent: req.get('User-Agent') ?? null,
+    });
+    return res.status(401).json(genericResponse);
+  }
 
-export const registerUser = (req:any, res:any) => {
-    //read user data from a plex file
-    let users:user[] = [];
-    
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') {
-            users = [];
-        }
-        else {
-            const parsedData = Buffer.from(data, 'base64').toString('utf8'); 
-            users = JSON.parse(parsedData);
-        } 
-    } catch (err) {
-        console.error('Error reading users file:', err);
-    }
+  const passwordMatches = await bcrypt.compare(payload.password, user.password);
+  if (!passwordMatches) {
+    await log({
+      user_id: user.id,
+      username: user.username,
+      tier: user.tier,
+      action: 'LOGIN_FAILED',
+      module: 'auth',
+      details: { reason: 'invalid credentials' },
+      ip_address: req.ip ?? null,
+      user_agent: req.get('User-Agent') ?? null,
+    });
+    return res.status(401).json(genericResponse);
+  }
 
-    const newUser:user = req.body;
-    if (!newUser.username || !newUser.password) {
-        return res.status(400).json({ message: 'Username and password are required' });
-    }
-
-    const existingUser = users.find(user => user.username === newUser.username);
-    if (existingUser) {
-        return res.status(400).json({ message: 'Username already exists' });
+  req.session.regenerate((err) => {
+    if (err) {
+      console.error('Session regeneration failed:', err);
+      return res.status(500).json({ success: false, message: 'Login failed' });
     }
 
-    const saltRounds = 10;
-    newUser.password = bcrypt.hashSync(newUser.password, saltRounds);
+    (req.session as any).user = {
+      id: user.id,
+      username: user.username,
+      full_name: user.full_name,
+      tier: user.tier,
+    };
 
-    users.push(newUser);
+    log({
+      user_id: user.id,
+      username: user.username,
+      tier: user.tier,
+      action: 'LOGIN_SUCCESS',
+      module: 'auth',
+      details: null,
+      ip_address: req.ip ?? null,
+      user_agent: req.get('User-Agent') ?? null,
+    }).catch((e) => console.error('Logging failed:', e));
 
-    try {
-        writeFileSync(
-            usersFile, 
-            Buffer.from(
-                JSON.stringify(users, null, 2), 'utf8').toString('base64')
-                ) 
-        res.status(201).json({ message: 'User registered successfully' });
-    } catch (err) {
-        console.error('Error writing to users file:', err);
-        res.status(500).json({ message: 'Internal server error' });
+    res.json({ success: true, user: { id: user.id, username: user.username, full_name: user.full_name, tier: user.tier } });
+  });
+};
+
+export const logoutUser = async (req: Request, res: Response) => {
+  const sessionUser = (req.session as any)?.user;
+  req.session.destroy(async (err) => {
+    if (err) {
+      console.error('Logout failed:', err);
+      return res.status(500).json({ success: false, message: 'Logout failed' });
     }
-}
+    await log({
+      user_id: sessionUser?.id ?? null,
+      username: sessionUser?.username ?? null,
+      tier: sessionUser?.tier ?? null,
+      action: 'LOGOUT',
+      module: 'auth',
+      details: null,
+      ip_address: req.ip ?? null,
+      user_agent: req.get('User-Agent') ?? null,
+    }).catch(() => undefined);
+    res.json({ success: true });
+  });
+};
 
-export const logoutUser = (req:any, res:any) => {}
+export const getUserProfile = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+  if (!userId) return res.status(400).json({ message: 'Missing user id' });
+  const user = await findUserById(userId);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  const { password, ...safeUser } = user;
+  res.json(safeUser);
+};
 
-export const getUserProfile = (req:any, res:any) => {
-    //read user data from a plex file
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') {
-            return res.status(404).json({ message: 'No users found' });
-        }
-        const parsedData = Buffer.from(data, 'base64').toString('utf8'); 
-        const users:user[] = JSON.parse(parsedData);
-        
-        const userId = req.query.id as string;
-        const userProfile = users.find(user => user.id === userId);
-        
-        if (!userProfile) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        res.status(200).json(userProfile);
-    } catch (err) {
-        console.error('Error reading users file:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
+export const registerUser = async (req: Request, res: Response) => {
+  const payload = req.body as UserCreatePayload;
+  if (!payload.username || !payload.password || !payload.full_name || !payload.tier) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
 
-export const updateUserProfile = (req:any, res:any) => {
-    //read user data from a plex file
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') {
-            return res.status(404).json({ message: 'No users found' });
-        }
-        const parsedData = Buffer.from(data, 'base64').toString('utf8'); // Decode base64
-        let users:user[] = JSON.parse(parsedData);
-        
-        const userId = req.query.id as string;
-        const userIndex = users.findIndex(user => user.id === userId);
-        
-        if (userIndex === -1) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        const updatedUser = { ...users[userIndex], ...req.body };
-        users[userIndex] = updatedUser;
-        
-        
-        writeFileSync(
-            usersFile, 
-            Buffer.from(JSON.stringify(users, null, 2), 'utf8').toString('base64')
-            ); // Encode to base64
-        
-        res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-    } catch (err) {
-        console.error('Error reading or writing users file:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
+  const existing = await findUserByUsername(payload.username);
+  if (existing) return res.status(400).json({ message: 'Username already exists' });
 
-export const deleteUserAccount = (req:any, res:any) => {
-    //read user data from a plex file
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') {
-            return res.status(404).json({ message: 'No users found' });
-        }
-        const parsedData = Buffer.from(data, 'base64').toString('utf8'); // Decode base64
-        let users:user[] = JSON.parse(parsedData);
-        
-        const userId = req.query.id as string;
-        users = users.filter(user => user.id !== userId);
-        
-        if (users.length === 0) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        writeFileSync(
-            usersFile, 
-            Buffer.from(JSON.stringify(users, null, 2), 'utf8').toString('base64')
-            );
-        
-        res.status(200).json({ message: 'User account deleted successfully' });
-    } catch (err) {
-        console.error('Error reading or writing users file:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
+  const user = await createUser(payload);
+  const { password, ...safeUser } = user;
+  await log({
+    user_id: null,
+    username: safeUser.username,
+    tier: safeUser.tier,
+    action: 'CREATE_USER',
+    module: 'users',
+    details: { username: safeUser.username, tier: safeUser.tier },
+    ip_address: req.ip ?? null,
+    user_agent: req.get('User-Agent') ?? null,
+  }).catch(() => undefined);
+  res.status(201).json(safeUser);
+};
 
-export const changeUserPassword = (req:any, res:any) => {
-    //read user data from a plex file
-    try {
-        const data = readFileSync(usersFile, 'utf8').trim();
-        if (data === '') {
-            return res.status(404).json({ message: 'No users found' });
-        }
-        const parsedData = Buffer.from(data, 'base64').toString('utf8'); // Decode base64
-        let users:user[] = JSON.parse(parsedData);
-        
-        const userId = req.query.id as string;
-        const userIndex = users.findIndex(user => user.id === userId);
-        
-        if (userIndex === -1) {
-            return res.status(404).json({ message: 'User with id and password not found' });
-        }
-        
-        const saltRounds = 10;
-        const newPassword = bcrypt.hashSync(req.body.password, saltRounds);
-        
+export const updateUserProfile = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+  if (!userId) return res.status(400).json({ message: 'Missing user id' });
 
-        users[userIndex].password = newPassword;
-        
-        writeFileSync(
-            usersFile, 
-            Buffer.from(JSON.stringify(users, null, 2), 'utf8').toString('base64')
-            ); 
-        
-        res.status(200).json({ message: 'Password changed successfully' });
-    } catch (err) {
-        console.error('Error reading or writing users file:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
+  const payload = req.body as UserUpdatePayload;
+  const updated = await updateUser(userId, payload);
+  if (!updated) return res.status(404).json({ message: 'User not found' });
 
-module.exports = {
-    loginUser,
-    registerUser,
-    logoutUser,
-    getUserProfile,
-    updateUserProfile,
-    deleteUserAccount,
-    changeUserPassword
+  await log({
+    user_id: updated.id,
+    username: updated.username,
+    tier: updated.tier,
+    action: 'UPDATE_USER',
+    module: 'users',
+    details: { updatedFields: Object.keys(payload) },
+    ip_address: req.ip ?? null,
+    user_agent: req.get('User-Agent') ?? null,
+  }).catch(() => undefined);
+
+  const { password, ...safeUser } = updated;
+  res.json(safeUser);
+};
+
+export const deleteUserAccount = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+  if (!userId) return res.status(400).json({ message: 'Missing user id' });
+  const deleted = await deactivateUser(userId);
+  if (!deleted) return res.status(404).json({ message: 'User not found' });
+
+  await log({
+    user_id: deleted.id,
+    username: deleted.username,
+    tier: deleted.tier,
+    action: 'DEACTIVATE_USER',
+    module: 'users',
+    details: null,
+    ip_address: req.ip ?? null,
+    user_agent: req.get('User-Agent') ?? null,
+  }).catch(() => undefined);
+
+  res.json({ success: true });
+};
+
+export const changeUserPassword = async (req: Request, res: Response) => {
+  const userId = req.query.id as string;
+  const newPassword = req.body?.password as string | undefined;
+
+  if (!userId || !newPassword) {
+    return res.status(400).json({ message: 'Missing user id or new password' });
+  }
+
+  const updated = await updateUser(userId, { password: newPassword });
+  if (!updated) return res.status(404).json({ message: 'User not found' });
+
+  await log({
+    user_id: updated.id,
+    username: updated.username,
+    tier: updated.tier,
+    action: 'CHANGE_PASSWORD',
+    module: 'auth',
+    details: null,
+    ip_address: req.ip ?? null,
+    user_agent: req.get('User-Agent') ?? null,
+  }).catch(() => undefined);
+
+  res.json({ success: true });
 };

@@ -3,7 +3,7 @@
     font-family: "Poppins", sans-serif;
 }
 body{
-    background-image: url('static/4957150.jpg');
+    background-image: url('/static/4957150.jpg');
     background-size: cover;
     background-repeat: no-repeat;
     background-position: right; 

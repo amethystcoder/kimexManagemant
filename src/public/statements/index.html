@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Kimex Customer Account Matcher v2</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      font-family: "Roboto", sans-serif;
+      font-optical-sizing: auto;
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 20px;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .stepper-box {
+      background-color: white;
+      border-radius: 12px;
+      padding: 24px;
+      width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      margin: 10px;
+      flex-shrink: 0;
+    }
+
+    .stepper-step {
+      display: flex;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .stepper-step:last-child {
+      margin-bottom: 0;
+    }
+
+    .stepper-line {
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      bottom: -24px;
+      width: 2px;
+      background-color: #e2e8f0;
+      z-index: 1;
+    }
+
+    .stepper-step:last-child .stepper-line {
+      display: none;
+    }
+
+    .stepper-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 16px;
+      z-index: 2;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+
+    .stepper-completed .stepper-circle {
+      background-color: #0f172a;
+      color: white;
+    }
+
+    .stepper-active .stepper-circle {
+      border: 2px solid #0f172a;
+      color: #0f172a;
+      background: white;
+    }
+
+    .stepper-pending .stepper-circle {
+      border: 2px solid #e2e8f0;
+      color: #94a3b8;
+      background: white;
+    }
+
+    .stepper-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .stepper-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .stepper-completed .stepper-title,
+    .stepper-active .stepper-title {
+      color: #0f172a;
+    }
+
+    .stepper-pending .stepper-title {
+      color: #94a3b8;
+    }
+
+    .stepper-status {
+      font-size: 13px;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-top: 4px;
+    }
+
+    .stepper-completed .stepper-status {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+
+    .stepper-active .stepper-status {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .stepper-pending .stepper-status {
+      background-color: #f1f5f9;
+      color: #64748b;
+    }
+
+    .stepper-time {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .stepper-amount {
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .stepper-details {
+      font-size: 13px;
+      color: #475569;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .stepper-container {
+      display: flex;
+      overflow-x: auto;
+      gap: 4px;
+      padding-bottom: 8px;
+    }
+
+    .unmatched-stepper {
+      flex-wrap: wrap;
+      overflow-x: hidden;
+    }
+
+    .container {
+      height: 300px;
+      width: 300px;
+      border-radius: 10px;
+      box-shadow: 4px 4px 30px rgba(0, 0, 0, .08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      gap: 5px;
+      background-color: rgba(0, 110, 255, 0.041);
+      flex-shrink: 0;
+    }
+
+    .header {
+      flex: 1;
+      width: 100%;
+      border: 2px dashed royalblue;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 10px;
+    }
+
+    .header svg {
+      height: 100px;
+    }
+
+    .header p {
+      text-align: center;
+      color: black;
+    }
+
+    .footer {
+      background-color: rgba(0, 110, 255, 0.075);
+      width: 100%;
+      height: 40px;
+      padding: 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: black;
+      border: none;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .previous-file {
+      padding: 12px;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column-reverse;
+      min-width: 180px;
+      max-width: 300px;
+      height: 300px;
+      font-size: large;
+      font-weight: 600;
+      border: 1px solid #e2e8f0;
+    }
+
+    .previous-file:hover {
+      background: #eef2ff;
+    }
+
+    .status-bar {
+      margin: 12px 0 20px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      font-size: 14px;
+      color: #334155;
+    }
+
+    .section-title {
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Customer Statement Matcher</h2>
+
+  <div style="display:flex; gap:20px; align-items:flex-start; overflow-x:auto;">
+    <div class="container"> 
+      <div class="header"> 
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15"
+            stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          </path>
+        </svg>
+        <p>Browse PDF statement to upload</p>
+      </div> 
+      <label for="fileInput" class="footer" id="fileLabel"> 
+        <p id="fileLabelText">No file selected</p> 
+      </label> 
+      <input type="file" id="fileInput" name="fileInput" accept="application/pdf">
+    </div>
+
+    <div id="previous-files" style="display:flex; gap:10px;"></div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    Ready. Upload a PDF statement.
+  </div>
+
+  <div>
+    <h1 class="section-title">Matched Transactions</h1>
+    <div class="stepper-container" id="stepper-exact-ui"></div>
+  </div>
+
+  <div>
+    <h1 class="section-title">Semi Matched Transactions</h1>
+    <div class="stepper-container" id="stepper-part-ui"></div>
+  </div>
+
+  <div>
+    <h1 class="section-title">Net Transactions</h1>
+    <div class="unmatched-stepper stepper-container" id="stepper-net-ui"></div>
+  </div>
+
+  <div>
+    <h1 class="section-title">Unmatched Transactions</h1>
+    <div class="unmatched-stepper stepper-container" id="stepper-unmatched-ui"></div>
+  </div>
+
+  <script>
+    /****************************************************************
+     * CONFIG
+     ****************************************************************/
+    const TOLERANCE = 3;
+    const MAX_STORE = 6;
+    const previousResults = [];
+
+    const fileInput = document.getElementById("fileInput");
+    const fileLabelText = document.getElementById("fileLabelText");
+    const statusBar = document.getElementById("statusBar");
+
+    /****************************************************************
+     * REGEX / HELPERS
+     ****************************************************************/
+    const DATE_REGEX = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+    const TIME_REGEX = /^\d{1,2}:\d{2}:\d{2}$/;
+    const EURO_REGEX = /[+-]?€[\d,]+\.\d{2}/g;
+
+    const isDate = (str) => DATE_REGEX.test(String(str || "").trim());
+    const isTime = (str) => TIME_REGEX.test(String(str || "").trim());
+    const hasEuro = (str) => String(str || "").includes("€");
+
+    const safeText = (value, fallback = "") => {
+      if (value === undefined || value === null) return fallback;
+      const s = String(value).trim();
+      return s === "" ? fallback : s;
+    };
+
+    const parseCurrencyAmount = (amount) => {
+      if (amount === undefined || amount === null) return 0;
+      const cleaned = String(amount).replace(/[^\d.-]/g, "");
+      const num = Number(cleaned);
+      return Number.isNaN(num) ? 0 : num;
+    };
+
+    const withinTolerance = (a, b) => Math.abs(a - b) <= TOLERANCE;
+
+    const saveToSession = (key, data) => {
+      const existing = previousResults.filter(item => item.key !== key);
+      existing.unshift({ key, data });
+      previousResults.length = 0;
+      previousResults.push(...existing.slice(0, MAX_STORE));
+      updatePreviousFilesUI();
+    };
+
+    const loadFromSession = () => previousResults;
+
+    const splitMergedEuroAmounts = (token) => {
+      if (!token || typeof token !== "string") return null;
+      const matches = token.match(EURO_REGEX);
+      if (matches && matches.length >= 2) {
+        return [matches[0], matches[1]];
+      }
+      return null;
+    };
+
+    const findFirstDateIndex = (words) => {
+      for (let i = 0; i < words.length; i++) {
+        if (isDate(words[i])) return i;
+      }
+      return -1;
+    };
+
+    const extractCustomerName = (arr) => {
+      if (!Array.isArray(arr)) return null;
+
+      const normalized = arr.map(s => safeText(s).toLowerCase());
+
+      let customerIndex = -1;
+      let endIndex = -1;
+
+      for (let i = 0; i < normalized.length; i++) {
+        if (normalized[i] === "customer") {
+          customerIndex = i;
+          break;
+        }
+      }
+
+      if (customerIndex === -1) return null;
+
+      for (let i = customerIndex + 1; i < normalized.length; i++) {
+        if (normalized[i] === "statement" || normalized[i] === "customer statement") {
+          endIndex = i;
+          break;
+        }
+      }
+
+      if (endIndex === -1) return null;
+
+      const nameParts = arr
+        .slice(customerIndex + 1, endIndex)
+        .map(s => safeText(s))
+        .filter(Boolean);
+
+      return nameParts.length ? nameParts.join(" ") : null;
+    };
+
+    const sanitizeTokens = (text) => {
+      return String(text || "")
+        .split(/\s+/)
+        .map(t => t.trim())
+        .filter(Boolean);
+    };
+
+    /****************************************************************
+     * PARSER (HARDENED)
+     ****************************************************************/
+    const parseTransactionObjects = (pageTexts) => {
+      const transactionDataList = [];
+      let customerName = "";
+
+      for (const pageText of pageTexts) {
+        let tracker = 0;
+
+        const pagewordList = sanitizeTokens(pageText);
+        const dateIndex = findFirstDateIndex(pagewordList);
+
+        // No transaction-like data found on page
+        if (dateIndex === -1) continue;
+
+        const headerTokens = pagewordList.slice(0, dateIndex);
+        const pageCustomerName = extractCustomerName(headerTokens);
+
+        if (!customerName) {
+          customerName = pageCustomerName || "";
+        }
+
+        let parsedTextList = pagewordList.slice(dateIndex);
+
+        // Trim trailing junk after last date/time
+        while (
+          parsedTextList.length &&
+          !isDate(parsedTextList[parsedTextList.length - 1]) &&
+          !isTime(parsedTextList[parsedTextList.length - 1])
+        ) {
+          parsedTextList.pop();
+        }
+
+        while (tracker < parsedTextList.length) {
+          // Every transaction should start with a date
+          if (!isDate(parsedTextList[tracker])) {
+            tracker++;
+            continue;
+          }
+
+          const temp = {
+            transaction_date: parsedTextList[tracker],
+            transaction_type: "Unknown",
+            transaction_details: "",
+            amount: "€0.00",
+            balance_after: "€0.00",
+            date_entered: parsedTextList[tracker],
+            time_entered: "00:00:00"
+          };
+
+          tracker++;
+
+          // Build details until we hit a euro token
+          let detailTokens = [];
+          while (tracker < parsedTextList.length && !hasEuro(parsedTextList[tracker])) {
+            // Safety: if we hit another date before seeing amount, break to avoid corruption
+            if (isDate(parsedTextList[tracker]) && detailTokens.length > 0) break;
+            detailTokens.push(parsedTextList[tracker]);
+            tracker++;
+          }
+
+          temp.transaction_details = detailTokens.join(" ").trim();
+
+          const detailsLower = temp.transaction_details.toLowerCase();
+
+          if (detailsLower.includes("payment")) {
+            temp.transaction_type = "Payment";
+          } else if (detailsLower.includes("customer") && detailsLower.includes("order")) {
+            temp.transaction_type = "Order";
+          } else if (detailsLower.includes("opening") && detailsLower.includes("balance")) {
+            temp.transaction_type = "Opening Balance";
+          }
+
+          // If no euro token exists where expected, skip malformed row safely
+          if (tracker >= parsedTextList.length || !hasEuro(parsedTextList[tracker])) {
+            // If this looks malformed, skip rather than poisoning all subsequent parsing
+            continue;
+          }
+
+          /**********************
+           * OPENING BALANCE CASE
+           **********************/
+          if (temp.transaction_type === "Opening Balance") {
+            const token = parsedTextList[tracker];
+
+            // Case 1: merged amount+balance in one token
+            const merged = splitMergedEuroAmounts(token);
+            if (merged) {
+              temp.amount = merged[0];
+              temp.balance_after = merged[1];
+              tracker++;
+            } else {
+              // Case 2: normal separate amount and balance
+              if (hasEuro(parsedTextList[tracker])) {
+                temp.amount = safeText(parsedTextList[tracker], "€0.00");
+                tracker++;
+              }
+
+              if (tracker < parsedTextList.length && hasEuro(parsedTextList[tracker])) {
+                temp.balance_after = safeText(parsedTextList[tracker], temp.amount);
+                tracker++;
+              } else {
+                // If balance missing, use amount
+                temp.balance_after = temp.amount;
+              }
+            }
+
+            // Optional date and/or time
+            if (tracker < parsedTextList.length && isDate(parsedTextList[tracker])) {
+              temp.date_entered = parsedTextList[tracker];
+              tracker++;
+            } else {
+              temp.date_entered = temp.transaction_date;
+            }
+
+            if (tracker < parsedTextList.length && isTime(parsedTextList[tracker])) {
+              temp.time_entered = parsedTextList[tracker];
+              tracker++;
+            } else {
+              temp.time_entered = "00:00:00";
+            }
+
+            transactionDataList.push(temp);
+            continue;
+          }
+
+          /**********************
+           * NORMAL TRANSACTION
+           **********************/
+          temp.amount = safeText(parsedTextList[tracker], "€0.00");
+          tracker++;
+
+          if (tracker < parsedTextList.length && hasEuro(parsedTextList[tracker])) {
+            temp.balance_after = safeText(parsedTextList[tracker], temp.amount);
+            tracker++;
+          } else {
+            // balance missing? fallback
+            temp.balance_after = temp.amount;
+          }
+
+          if (tracker < parsedTextList.length && isDate(parsedTextList[tracker])) {
+            temp.date_entered = parsedTextList[tracker];
+            tracker++;
+          } else {
+            temp.date_entered = temp.transaction_date;
+          }
+
+          if (tracker < parsedTextList.length && isTime(parsedTextList[tracker])) {
+            temp.time_entered = parsedTextList[tracker];
+            tracker++;
+          } else {
+            temp.time_entered = "00:00:00";
+          }
+
+          transactionDataList.push(temp);
+        }
+      }
+
+      if (!customerName) {
+        customerName = "Unknown Customer " + Date.now();
+      }
+
+      return { customerName, transactionDataList };
+    };
+
+    /****************************************************************
+     * MATCHING LOGIC
+     ****************************************************************/
+    const getSignedAmount = (tx) => {
+      const amount = Math.abs(parseCurrencyAmount(tx.amount));
+
+      if (tx.transaction_type === "Payment") return amount;
+      if (tx.transaction_type === "Order") return -amount;
+
+      // Opening Balance / Unknown do not participate
+      return 0;
+    };
+
+    const matchNetReconciledTransactions = (transactions) => {
+      const reconciledGroups = [];
+      const used = new Set();
+      const n = transactions.length;
+
+      let i = 0;
+
+      while (i < n) {
+        if (used.has(i)) {
+          i++;
+          continue;
+        }
+
+        const startTx = transactions[i];
+
+        // Ignore non-reconcilable types
+        if (startTx.transaction_type !== "Order" && startTx.transaction_type !== "Payment") {
+          i++;
+          continue;
+        }
+
+        let runningBalance = 0;
+        let bucket = [];
+        let matched = false;
+
+        for (let j = i; j < n; j++) {
+          if (used.has(j)) continue;
+
+          const tx = transactions[j];
+
+          if (tx.transaction_type !== "Order" && tx.transaction_type !== "Payment") {
+            continue;
+          }
+
+          runningBalance += getSignedAmount(tx);
+          bucket.push({ tx, idx: j });
+
+          if (bucket.length >= 2 && withinTolerance(runningBalance, 0)) {
+            bucket.forEach(b => used.add(b.idx));
+
+            reconciledGroups.push({
+              balance: runningBalance,
+              transactions: bucket.map(b => b.tx),
+            });
+
+            i = j + 1;
+            matched = true;
+            break;
+          }
+        }
+
+        if (!matched) i++;
+      }
+
+      const remaining = transactions.filter((_, idx) => !used.has(idx));
+
+      return { reconciledGroups, remaining };
+    };
+
+    const matchTransactions = (transactions) => {
+      const exactMatches = [];
+      const partMatches = [];
+      const used = new Set();
+
+      // ---------- EXACT ----------
+      for (let i = 0; i < transactions.length; i++) {
+        if (used.has(i)) continue;
+
+        const order = transactions[i];
+        if (order.transaction_type !== "Order") continue;
+
+        for (let j = i + 1; j < transactions.length; j++) {
+          if (used.has(j)) continue;
+
+          const payment = transactions[j];
+          if (payment.transaction_type !== "Payment") continue;
+
+          if (
+            parseCurrencyAmount(order.amount) * -1 === parseCurrencyAmount(payment.amount)
+          ) {
+            exactMatches.push([order, payment]);
+            used.add(i);
+            used.add(j);
+            break;
+          }
+        }
+      }
+
+      // ---------- PART PAYMENTS (1 order ↔ many payments) ----------
+      for (let i = 0; i < transactions.length; i++) {
+        if (used.has(i)) continue;
+
+        const order = transactions[i];
+        if (order.transaction_type !== "Order") continue;
+
+        const orderAmount = Math.abs(parseCurrencyAmount(order.amount));
+        let sum = 0;
+        const payments = [];
+
+        for (let j = i + 1; j < transactions.length; j++) {
+          if (used.has(j)) continue;
+
+          const p = transactions[j];
+          if (p.transaction_type !== "Payment") continue;
+
+          sum += Math.abs(parseCurrencyAmount(p.amount));
+          payments.push({ tx: p, idx: j });
+
+          if (withinTolerance(sum, orderAmount)) {
+            used.add(i);
+            payments.forEach(p => used.add(p.idx));
+            partMatches.push({
+              order,
+              payments: payments.map(p => p.tx)
+            });
+            break;
+          }
+
+          if (sum > orderAmount + TOLERANCE) break;
+        }
+      }
+
+      // Exclude Opening Balance / Unknown from reconciliation pool
+      const remainingTx = transactions.filter((tx, i) =>
+        !used.has(i) &&
+        (tx.transaction_type === "Order" || tx.transaction_type === "Payment")
+      );
+
+      const { reconciledGroups, remaining } = matchNetReconciledTransactions(remainingTx);
+
+      // Also include non-reconcilable leftovers (except opening balance)
+      const otherRemaining = transactions.filter((tx, i) =>
+        !used.has(i) &&
+        tx.transaction_type !== "Opening Balance" &&
+        tx.transaction_type !== "Order" &&
+        tx.transaction_type !== "Payment"
+      );
+
+      return {
+        exactMatches,
+        partMatches,
+        reconciledGroups,
+        remaining: [...remaining, ...otherRemaining]
+      };
+    };
+
+    /****************************************************************
+     * RENDERING
+     ****************************************************************/
+    const renderStepper = (exactUI, partUI, unmatchedUI, netUI) => {
+      document.getElementById("stepper-exact-ui").innerHTML = exactUI;
+      document.getElementById("stepper-part-ui").innerHTML = partUI;
+      document.getElementById("stepper-net-ui").innerHTML = netUI;
+      document.getElementById("stepper-unmatched-ui").innerHTML = unmatchedUI;
+    };
+
+    const renderOrder = (order, stepNumber) => `
+      <div class="stepper-step stepper-completed">
+        <div class="stepper-circle">${stepNumber}</div>
+        <div class="stepper-line"></div>
+        <div class="stepper-content">
+          <div class="stepper-title">Order Placed</div>
+          <div class="stepper-amount">${safeText(order.amount, "€0.00")}</div>
+          <div class="stepper-status">Completed</div>
+          <div class="stepper-time">${safeText(order.date_entered)} ${safeText(order.time_entered)}</div>
+          <div class="stepper-details">${safeText(order.transaction_details)}</div>
+        </div>
+      </div>
+    `;
+
+    const renderPayment = (payment, stepNumber) => `
+      <div class="stepper-step stepper-completed">
+        <div class="stepper-circle">${stepNumber}</div>
+        <div class="stepper-line"></div>
+        <div class="stepper-content">
+          <div class="stepper-title">Order Paid</div>
+          <div class="stepper-amount">${safeText(payment.amount, "€0.00")}</div>
+          <div class="stepper-status">Completed</div>
+          <div class="stepper-time">${safeText(payment.date_entered)} ${safeText(payment.time_entered)}</div>
+          <div class="stepper-details">${safeText(payment.transaction_details)}</div>
+        </div>
+      </div>
+    `;
+
+    const renderExact = (matches) => {
+      if (!matches.length) return `<div class="stepper-box">No exact matches found.</div>`;
+
+      return matches.map(m => `
+        <div class="stepper-box">
+          ${renderOrder(m[0], 1)}
+          ${renderPayment(m[1], 2)}
+        </div>
+      `).join("");
+    };
+
+    const renderPart = (match) => {
+      let steps = `
+        <div class="stepper-step stepper-completed">
+          <div class="stepper-circle">1</div>
+          <div class="stepper-line"></div>
+          <div class="stepper-content">
+            <div class="stepper-title">Order Placed</div>
+            <div class="stepper-amount">${safeText(match.order.amount, "€0.00")}</div>
+            <div class="stepper-time">${safeText(match.order.date_entered)} ${safeText(match.order.time_entered)}</div>
+            <div class="stepper-details">${safeText(match.order.transaction_details)}</div>
+          </div>
+        </div>
+      `;
+
+      match.payments.forEach((p, i) => {
+        steps += `
+          <div class="stepper-step stepper-completed">
+            <div class="stepper-circle">${i + 2}</div>
+            <div class="stepper-line"></div>
+            <div class="stepper-content">
+              <div class="stepper-title">Part Payment</div>
+              <div class="stepper-amount">${safeText(p.amount, "€0.00")}</div>
+              <div class="stepper-time">${safeText(p.date_entered)} ${safeText(p.time_entered)}</div>
+              <div class="stepper-details">${safeText(p.transaction_details)}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      return `<div class="stepper-box">${steps}</div>`;
+    };
+
+    const renderUnmatched = (tx, title) => `
+      <div class="stepper-box">
+        <div class="stepper-step stepper-pending">
+          <div class="stepper-circle">!</div>
+          <div class="stepper-content">
+            <div class="stepper-title">${title}</div>
+            <div class="stepper-amount">${safeText(tx.amount, "€0.00")}</div>
+            <div class="stepper-time"><b>${safeText(tx.date_entered)} ${safeText(tx.time_entered)}</b></div>
+            <div class="stepper-details">${safeText(tx.transaction_details)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const renderNetGroup = (group) => `
+      <div class="stepper-box">
+        ${group.transactions.map((tx, i) => `
+          <div class="stepper-step stepper-completed">
+            <div class="stepper-circle">${i + 1}</div>
+            <div class="stepper-content">
+              <div class="stepper-title">${safeText(tx.transaction_type, "Transaction")}</div>
+              <div class="stepper-amount">${safeText(tx.amount, "€0.00")}</div>
+              <div class="stepper-time">${safeText(tx.date_entered)} ${safeText(tx.time_entered)}</div>
+              <div class="stepper-details">${safeText(tx.transaction_details)}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    const renderResults = (data) => {
+      const { exactMatches, partMatches, remaining, reconciledGroups } = data;
+
+      const exactUI = renderExact(exactMatches);
+
+      let partUI = "";
+      if (partMatches.length) {
+        partMatches.forEach(p => partUI += renderPart(p));
+      } else {
+        partUI = `<div class="stepper-box">No semi matches found.</div>`;
+      }
+
+      let netUI = "";
+      if (reconciledGroups.length) {
+        reconciledGroups.forEach(g => netUI += renderNetGroup(g));
+      } else {
+        netUI = `<div class="stepper-box">No net reconciliations found.</div>`;
+      }
+
+      let unmatchedUI = "";
+      const filteredRemaining = remaining.filter(r => r.transaction_type !== "Opening Balance");
+
+      if (filteredRemaining.length) {
+        filteredRemaining.forEach(r => {
+          let title = "Unmatched Transaction";
+          if (r.transaction_type === "Order") title = "Unpaid Order";
+          else if (r.transaction_type === "Payment") title = "Unmatched Payment";
+
+          unmatchedUI += renderUnmatched(r, title);
+        });
+      } else {
+        unmatchedUI = `<div class="stepper-box">No unmatched transactions.</div>`;
+      }
+
+      renderStepper(exactUI, partUI, unmatchedUI, netUI);
+    };
+
+    const updatePreviousFilesUI = () => {
+      const container = document.getElementById("previous-files");
+      container.innerHTML = "";
+
+      previousResults.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "previous-file";
+        div.textContent = p.key;
+
+        div.onclick = () => {
+          if (!p.data) return;
+          renderResults(p.data);
+
+          const meta = p.data.meta || {};
+          statusBar.textContent =
+            `Loaded saved result: ${p.key}` +
+            (meta.transactionCount ? ` | Transactions: ${meta.transactionCount}` : "");
+        };
+
+        container.appendChild(div);
+      });
+    };
+
+    /****************************************************************
+     * PDF EXTRACTION
+     ****************************************************************/
+    const extractPdfText = async (file) => {
+      const pdf = await pdfjsLib.getDocument({
+        data: await file.arrayBuffer()
+      }).promise;
+
+      const pageTexts = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const text = await page.getTextContent();
+
+        // Keep item order as-is (still imperfect, but safer than blind assumptions)
+        pageTexts.push(text.items.map(t => t.str).join(" "));
+      }
+
+      return pageTexts;
+    };
+
+    /****************************************************************
+     * FILE HANDLING
+     ****************************************************************/
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      fileLabelText.textContent = file.name;
+      statusBar.textContent = "Reading PDF...";
+
+      try {
+        const pageTexts = await extractPdfText(file);
+
+        statusBar.textContent = "Parsing transactions...";
+        const tx = parseTransactionObjects(pageTexts);
+
+        statusBar.textContent = `Parsed ${tx.transactionDataList.length} transactions for ${tx.customerName}. Matching...`;
+
+        const results = matchTransactions(tx.transactionDataList);
+
+        saveToSession(tx.customerName, {
+          ...results,
+          meta: {
+            customerName: tx.customerName,
+            transactionCount: tx.transactionDataList.length,
+            savedAt: new Date().toISOString()
+          }
+        });
+
+        renderResults(results);
+
+        statusBar.textContent =
+          `Done. Customer: ${tx.customerName} | Transactions: ${tx.transactionDataList.length} | ` +
+          `Exact: ${results.exactMatches.length} | Semi: ${results.partMatches.length} | ` +
+          `Net: ${results.reconciledGroups.length} | Unmatched: ${results.remaining.length}`;
+      } catch (err) {
+        console.error(err);
+        statusBar.textContent = "Failed to process PDF. Check console for details.";
+        alert("Failed to process PDF. Open the browser console to inspect the parsing issue.");
+      }
+    });
+
+    /****************************************************************
+     * LOAD PREVIOUS
+     ****************************************************************/
+    window.addEventListener("load", () => {
+      updatePreviousFilesUI();
+    });
+  </script>
+</body>
+</html>
