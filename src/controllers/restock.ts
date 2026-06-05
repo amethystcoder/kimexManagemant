@@ -3,18 +3,25 @@ import { addRestockItems, readRestocks } from '../services/restockService';
 import { log } from '../shared/utils/logger';
 import { NewRestockItem } from '../types/restockTypes';
 
-export const restock = async (req: Request, res: Response) => {
+export const restock = async (req: Request, res: Response): Promise<void> => {
   const restockList = req.body.restockList as NewRestockItem[] | undefined;
   if (!restockList || !Array.isArray(restockList)) {
-    return res.status(400).json({ message: 'Invalid restock list provided.' });
+    res.status(400).json({ message: 'Invalid restock list provided.' });
+    return;
   }
 
   for (const item of restockList) {
-    if (!item.productName || !item.productType || !item.quantity) {
-      return res.status(400).json({ message: 'Missing required fields in restock item.' });
+    if (!item.productName || !item.productType || !item.quantity || !item.expiryDate) {
+      res.status(400).json({ message: 'Missing required fields in restock item.' });
+      return;
     }
     if (typeof item.quantity !== 'number' || item.quantity <= 0) {
-      return res.status(400).json({ message: 'Quantity must be a positive number.' });
+      res.status(400).json({ message: 'Quantity must be a positive number.' });
+      return;
+    }
+    if (isNaN(new Date(item.expiryDate as unknown as string).getTime())) {
+      res.status(400).json({ message: 'Invalid expiry date.' });
+      return;
     }
   }
 
@@ -41,14 +48,14 @@ export const restock = async (req: Request, res: Response) => {
       user_agent: req.get('User-Agent') ?? null,
     });
 
-    return res.status(201).json({ success: true, createdItems });
+    res.status(201).json({ success: true, createdItems });
   } catch (error: any) {
     console.error('Restock error:', error);
-    return res.status(500).json({ message: 'Failed to process restock request.' });
+    res.status(500).json({ message: 'Failed to process restock request.' });
   }
 };
 
-export const getAllRestocks = async (_req: Request, res: Response) => {
+export const getAllRestocks = async (_req: Request, res: Response): Promise<void> => {
   try {
     const restockItems = await readRestocks();
     res.json(restockItems);

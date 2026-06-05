@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import session from 'express-session';
-import bodyParser from 'body-parser';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import authRouter from './routes/auth';
 import restockRouter from './routes/restock';
@@ -19,8 +19,16 @@ const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 app.use(helmet());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "cdn.tailwindcss.com"],
+    },
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.set('trust proxy', 1);
 app.use(
@@ -37,9 +45,16 @@ app.use(
   })
 );
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(pageViewLogger);
 
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/restock', requireAuth, restockRouter);
 app.use('/api/users', requireAuth, usersRouter);
 app.use('/api/logs', requireAuth, logsRouter);
@@ -61,7 +76,11 @@ app.get('/', (req, res) => {
   return res.redirect('/login/login.html');
 });
 
-app.listen(port, async () => {
+const start = async () => {
   await initializeData();
-  console.log(`Kimex Management Suite listening on http://localhost:${port}`);
-});
+  app.listen(port, () => {
+    console.log(`Kimex Management Suite listening on http://localhost:${port}`);
+  });
+};
+
+start();

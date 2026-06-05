@@ -4,10 +4,13 @@ import { findUserByUsername, findUserById, createUser, updateUser, deactivateUse
 import { LoginRequest, UserCreatePayload, UserUpdatePayload } from '../types/authTypes';
 import { log } from '../shared/utils/logger';
 
-export const loginUser = async (req: Request, res: Response) => {
+export const loginUser = async (req: Request, res: Response): Promise<void> => {
   const payload = req.body as LoginRequest;
+
+  console.log('Login attempt:', { username: payload.username, ip: req.ip, userAgent: req.get('User-Agent') });
   if (!payload.username || !payload.password) {
-    return res.status(400).json({ success: false, message: 'Invalid credentials' });
+    res.status(400).json({ success: false, message: 'Invalid credentials' });
+    return;
   }
 
   const user = await findUserByUsername(payload.username);
@@ -24,7 +27,8 @@ export const loginUser = async (req: Request, res: Response) => {
       ip_address: req.ip ?? null,
       user_agent: req.get('User-Agent') ?? null,
     });
-    return res.status(401).json(genericResponse);
+    res.status(401).json(genericResponse);
+    return;
   }
 
   const passwordMatches = await bcrypt.compare(payload.password, user.password);
@@ -39,13 +43,15 @@ export const loginUser = async (req: Request, res: Response) => {
       ip_address: req.ip ?? null,
       user_agent: req.get('User-Agent') ?? null,
     });
-    return res.status(401).json(genericResponse);
+    res.status(401).json(genericResponse);
+    return;
   }
 
   req.session.regenerate((err) => {
     if (err) {
       console.error('Session regeneration failed:', err);
-      return res.status(500).json({ success: false, message: 'Login failed' });
+      res.status(500).json({ success: false, message: 'Login failed' });
+      return;
     }
 
     (req.session as any).user = {
@@ -70,12 +76,13 @@ export const loginUser = async (req: Request, res: Response) => {
   });
 };
 
-export const logoutUser = async (req: Request, res: Response) => {
+export const logoutUser = async (req: Request, res: Response): Promise<void> => {
   const sessionUser = (req.session as any)?.user;
   req.session.destroy(async (err) => {
     if (err) {
       console.error('Logout failed:', err);
-      return res.status(500).json({ success: false, message: 'Logout failed' });
+      res.status(500).json({ success: false, message: 'Logout failed' });
+      return;
     }
     await log({
       user_id: sessionUser?.id ?? null,
@@ -91,23 +98,40 @@ export const logoutUser = async (req: Request, res: Response) => {
   });
 };
 
-export const getUserProfile = async (req: Request, res: Response) => {
+export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.id as string;
-  if (!userId) return res.status(400).json({ message: 'Missing user id' });
+  if (!userId) {
+    res.status(400).json({ message: 'Missing user id' });
+    return;
+  }
+
+  const sessionUser = (req.session as any)?.user;
+  if (sessionUser?.tier !== 'admin' && sessionUser?.id !== userId) {
+    res.status(403).json({ message: 'Access denied' });
+    return;
+  }
+
   const user = await findUserById(userId);
-  if (!user) return res.status(404).json({ message: 'User not found' });
+  if (!user) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
   const { password, ...safeUser } = user;
   res.json(safeUser);
 };
 
-export const registerUser = async (req: Request, res: Response) => {
+export const registerUser = async (req: Request, res: Response): Promise<void> => {
   const payload = req.body as UserCreatePayload;
   if (!payload.username || !payload.password || !payload.full_name || !payload.tier) {
-    return res.status(400).json({ message: 'Missing required fields' });
+    res.status(400).json({ message: 'Missing required fields' });
+    return;
   }
 
   const existing = await findUserByUsername(payload.username);
-  if (existing) return res.status(400).json({ message: 'Username already exists' });
+  if (existing) {
+    res.status(400).json({ message: 'Username already exists' });
+    return;
+  }
 
   const user = await createUser(payload);
   const { password, ...safeUser } = user;
@@ -124,13 +148,25 @@ export const registerUser = async (req: Request, res: Response) => {
   res.status(201).json(safeUser);
 };
 
-export const updateUserProfile = async (req: Request, res: Response) => {
+export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.id as string;
-  if (!userId) return res.status(400).json({ message: 'Missing user id' });
+  if (!userId) {
+    res.status(400).json({ message: 'Missing user id' });
+    return;
+  }
+
+  const sessionUser = (req.session as any)?.user;
+  if (sessionUser?.tier !== 'admin' && sessionUser?.id !== userId) {
+    res.status(403).json({ message: 'Access denied' });
+    return;
+  }
 
   const payload = req.body as UserUpdatePayload;
   const updated = await updateUser(userId, payload);
-  if (!updated) return res.status(404).json({ message: 'User not found' });
+  if (!updated) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
 
   await log({
     user_id: updated.id,
@@ -147,11 +183,24 @@ export const updateUserProfile = async (req: Request, res: Response) => {
   res.json(safeUser);
 };
 
-export const deleteUserAccount = async (req: Request, res: Response) => {
+export const deleteUserAccount = async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.id as string;
-  if (!userId) return res.status(400).json({ message: 'Missing user id' });
+  if (!userId) {
+    res.status(400).json({ message: 'Missing user id' });
+    return;
+  }
+
+  const sessionUser = (req.session as any)?.user;
+  if (sessionUser?.tier !== 'admin' && sessionUser?.id !== userId) {
+    res.status(403).json({ message: 'Access denied' });
+    return;
+  }
+
   const deleted = await deactivateUser(userId);
-  if (!deleted) return res.status(404).json({ message: 'User not found' });
+  if (!deleted) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
 
   await log({
     user_id: deleted.id,
@@ -167,16 +216,26 @@ export const deleteUserAccount = async (req: Request, res: Response) => {
   res.json({ success: true });
 };
 
-export const changeUserPassword = async (req: Request, res: Response) => {
+export const changeUserPassword = async (req: Request, res: Response): Promise<void> => {
   const userId = req.query.id as string;
   const newPassword = req.body?.password as string | undefined;
 
   if (!userId || !newPassword) {
-    return res.status(400).json({ message: 'Missing user id or new password' });
+    res.status(400).json({ message: 'Missing user id or new password' });
+    return;
+  }
+
+  const sessionUser = (req.session as any)?.user;
+  if (sessionUser?.tier !== 'admin' && sessionUser?.id !== userId) {
+    res.status(403).json({ message: 'Access denied' });
+    return;
   }
 
   const updated = await updateUser(userId, { password: newPassword });
-  if (!updated) return res.status(404).json({ message: 'User not found' });
+  if (!updated) {
+    res.status(404).json({ message: 'User not found' });
+    return;
+  }
 
   await log({
     user_id: updated.id,

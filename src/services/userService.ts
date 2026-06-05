@@ -1,19 +1,20 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { readStore, writeStore } from '../config/store';
+import path from 'path';
+import { readPlexStore, writePlexStore } from '../config/store';
 import { User, UserCreatePayload, UserUpdatePayload } from '../types/authTypes';
 
-const USERS_FILE = 'users.json';
+const USERS_FILE = path.resolve(process.cwd(), process.env.USERS_FILE || 'src/model/users.plex');
 const SALT_ROUNDS = 12;
 
 const newId = (prefix: string) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
 export const readUsers = async (): Promise<User[]> => {
-  return await readStore<User[]>(USERS_FILE, []);
+  return await readPlexStore<User[]>(USERS_FILE, []);
 };
 
 export const writeUsers = async (users: User[]): Promise<void> => {
-  await writeStore<User[]>(USERS_FILE, users);
+  await writePlexStore<User[]>(USERS_FILE, users);
 };
 
 export const findUserByUsername = async (username: string): Promise<User | undefined> => {

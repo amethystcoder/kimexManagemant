@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { readStore, writeStore } from '../config/store';
 import { NewRestockItem, RestockItem } from '../types/restockTypes';
 
@@ -34,8 +35,8 @@ export const addRestockItems = async (items: Omit<RestockItem, 'id' | 'restockDa
   const existing = await readRestocks();
   const now = new Date();
 
-  const newItems: RestockItem[] = items.map((item, index) => ({
-    id: (existing.length + index + 1).toString(),
+  const newItems: RestockItem[] = items.map((item) => ({
+    id: `rst_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
     productName: item.productName,
     productType: item.productType,
     quantity: item.quantity,
