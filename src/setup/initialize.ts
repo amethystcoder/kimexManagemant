@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { findUserByUsername, createUser } from '../services/userService';
+import { initInventory } from '../services/inventoryService';
 
 const dataDir = path.resolve(process.cwd(), process.env.DATA_DIR || 'data');
 const logsPath = path.join(dataDir, 'logs.jsonl');
@@ -32,4 +33,6 @@ export const initializeData = async () => {
   } catch {
     await fs.writeFile(logsPath, '', 'utf-8');
   }
+
+  await initInventory();
 };

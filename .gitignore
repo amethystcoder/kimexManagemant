@@ -3,3 +3,4 @@
 /build
 /.vscode
 /src/model
+/src/temp/app/node_modules

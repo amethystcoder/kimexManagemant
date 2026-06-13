@@ -6,8 +6,6 @@ import { log } from '../shared/utils/logger';
 
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   const payload = req.body as LoginRequest;
-
-  console.log('Login attempt:', { username: payload.username, ip: req.ip, userAgent: req.get('User-Agent') });
   if (!payload.username || !payload.password) {
     res.status(400).json({ success: false, message: 'Invalid credentials' });
     return;
@@ -214,6 +212,12 @@ export const deleteUserAccount = async (req: Request, res: Response): Promise<vo
   }).catch(() => undefined);
 
   res.json({ success: true });
+};
+
+export const getMe = (req: Request, res: Response): void => {
+  const user = (req.session as any)?.user;
+  if (!user) { res.status(401).json({ message: 'Not authenticated' }); return; }
+  res.json(user);
 };
 
 export const changeUserPassword = async (req: Request, res: Response): Promise<void> => {
